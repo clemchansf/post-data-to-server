@@ -2,7 +2,7 @@
 
 ## Installation
 
-1. clone repo https://clemchansf.github.com/post-data-to-server
+1. clone repo https://github.com/clemchansf/post-data-to-server.git
 2. run `npm install`
 
 ## Usage
