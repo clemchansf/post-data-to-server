@@ -10,6 +10,7 @@ const schemaFiles = fs.readdirSync(schemas)
 
 const logger = new Logger().getInstance()
 //   console.logger.log(err)
+
 // }
 
 const run = async () => {
