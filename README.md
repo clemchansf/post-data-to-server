@@ -2,9 +2,9 @@
 
 ## Installation
 
-1. clone repo https://github.com/clemchansf/post-data-to-server.git
-2. run `npm install`
+1. `git clone https://github.com/clemchansf/post-data-to-server.git`
+2. `npm install`
 
 ## Usage
 
-1. run `npm run start`
+1. `node .`

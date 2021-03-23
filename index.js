@@ -1,14 +1,16 @@
-const variables = require("./components/config")
+const variables = require("./util/Config")
 const fs = require("fs")
-const { parse, trim } = require("./components/parser")
+const { parse, trim } = require("./util/Parser")
+const Logger = require("./util/Logger")
+
 let { data, schemas } = variables.folders
 const Axios = require("axios")
 
 const schemaFiles = fs.readdirSync(schemas)
 
-const log = err => {
-  console.log(err)
-}
+const logger = new Logger().getInstance()
+//   console.logger.log(err)
+// }
 
 const run = async () => {
   let retry = []
@@ -26,9 +28,9 @@ const run = async () => {
       let recObj = parse(records[j], attributes)
       try {
         const response = await Axios.post(trim(variables.postURL), recObj)
-        log("success post: " + JSON.stringify(response.data, null, 2))
+        logger.log("success post: " + JSON.stringify(response.data, null, 2))
       } catch (status) {
-        log("post error: " + status)
+        logger.log("post error: " + status)
         retry.push(recObj)
       } finally {
         //
@@ -50,18 +52,18 @@ const main = async () => {
         let recObj = redo[i]
         try {
           const response = await Axios.post(trim(variables.postURL), recObj)
-          log("post redo succeeded with :" + JSON.stringify(response.data, null, 2))
+          logger.log("post redo succeeded with :" + JSON.stringify(response.data, null, 2))
         } catch (status) {
-          log("redo error: " + status)
+          logger.log("redo error: " + status)
           errors.push(recObj)
         }
       }
       if (errors.length) {
-        log("Real failures: " + JSON.stringify(errors, null, 2))
+        logger.log("Real failures: " + JSON.stringify(errors, null, 2))
       }
     }, 5000)
   } catch (status) {
-    log("main error: " + status)
+    logger.log("main error: " + status)
   }
 }
 
