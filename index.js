@@ -1,71 +1,78 @@
 const variables = require("./util/Config")
-const fs = require("fs")
+const request = require("request-promise")
+const fs = require("fs-extra")
 const { parse, trim } = require("./util/Parser")
 const Logger = require("./util/Logger")
-
 let { data, schemas } = variables.folders
-const Axios = require("axios")
-
-const schemaFiles = fs.readdirSync(schemas)
 
 const logger = new Logger().getInstance()
-//   console.logger.log(err)
+const postUrl = trim(variables.postURL)
 
-// }
+;(async () => {
+  const allContents = []
 
-const run = async () => {
-  let retry = []
-  for (let i = 0; i < schemaFiles.length; i++) {
-    let sFile = schemaFiles[i]
-    let [sName, sExt] = sFile.split(".")
-    if (sExt !== "csv") continue //skip for non schema file
+  try {
+    let schemaFiles = await fs.readdir(schemas, "utf-8")
+    for (schemaFile of schemaFiles) {
+      let attributes = await fs.readFile(`${schemas}/${schemaFile}`, "utf-8")
+      attributes = attributes.split(/\n/g)
 
-    let sLocation = `${schemas}/${sFile}`
-    let attributes = fs.readFileSync(sLocation, "UTF-8").split(/\n/)
+      let [schemaName, schemaExt] = schemaFile.split(".")
+      let records = await fs.readFile(`${data}/${schemaName}.txt`, "utf-8")
+      records = records.split(/\n/g)
 
-    const records = fs.readFileSync(`${data}/${sName}.txt`, "UTF-8").split(/\n/)
+      for (record of records) {
+        let recordJson = parse(record, attributes)
+        allContents.push(
+          await (async () => {
+            try {
+              res = await request({
+                url: postUrl,
+                method: "POST",
+                json: true,
+                body: recordJson
+              })
+              return res
+            } catch (e) {
+              return { recordJson, error: e.message }
+            }
+          })()
+        )
+      }
 
-    for (let j = 0; j < records.length; j++) {
-      let recObj = parse(records[j], attributes)
-      try {
-        const response = await Axios.post(trim(variables.postURL), recObj)
-        logger.log("success post: " + JSON.stringify(response.data, null, 2))
-      } catch (status) {
-        logger.log("post error: " + status)
-        retry.push(recObj)
-      } finally {
-        //
+      const retry = allContents.filter(result => result.error)
+      if (retry.length) {
+        console.log(`retry for ${schemaFile} after ${variables.retryTimeout} seconds`)
+        allContents.splice(0, allContents.length)
+        setTimeout(async () => {
+          for (record of retry) {
+            const { recordJson } = record
+            allContents.push(
+              await (async () => {
+                try {
+                  res = await request({
+                    url: postUrl,
+                    method: "POST",
+                    json: true,
+                    body: recordJson
+                  })
+                  return res
+                } catch (e) {
+                  return { recordJson, error: e.message }
+                }
+              })()
+            )
+          }
+          const blocked = allContents.filter(result => result.error)
+          if (blocked.length) {
+            logger.log(`Post failures - ${JSON.stringify(blocked, null, 2)}`)
+          }
+        }, variables.retryTimeout * 1000)
+      } else {
+        logger.log(`success posts: ${JSON.stringify(allContents, null, 2)}`)
       }
     }
+  } catch (e) {
+    console.error(e.message)
   }
-  return retry
-}
-
-const main = async () => {
-  try {
-    let errors = []
-    let redo = await run()
-
-    if (!redo.length) return
-
-    setTimeout(async () => {
-      for (let i = 0; i < redo.length; i++) {
-        let recObj = redo[i]
-        try {
-          const response = await Axios.post(trim(variables.postURL), recObj)
-          logger.log("post redo succeeded with :" + JSON.stringify(response.data, null, 2))
-        } catch (status) {
-          logger.log("redo error: " + status)
-          errors.push(recObj)
-        }
-      }
-      if (errors.length) {
-        logger.log("Real failures: " + JSON.stringify(errors, null, 2))
-      }
-    }, 5000)
-  } catch (status) {
-    logger.log("main error: " + status)
-  }
-}
-
-main()
+})()
