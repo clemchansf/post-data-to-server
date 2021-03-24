@@ -5,5 +5,6 @@ module.exports = {
   folders: {
     data: "./data",
     schemas: "./schemas"
-  }
+  },
+  retryTimeout: 10 // 10 seconds
 }
