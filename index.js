@@ -1,6 +1,7 @@
 const variables = require("./util/Config")
 const request = require("request-promise")
 const fs = require("fs-extra")
+const path = require("path")
 const { parse, trim } = require("./util/Parser")
 const Logger = require("./util/Logger")
 let { data, schemas } = variables.folders
@@ -14,11 +15,14 @@ const postUrl = trim(variables.postURL)
   try {
     let schemaFiles = await fs.readdir(schemas, "utf-8")
     for (schemaFile of schemaFiles) {
-      let attributes = await fs.readFile(`${schemas}/${schemaFile}`, "utf-8")
+      let attrFile = path.join(schemas, schemaFile)
+      let attributes = await fs.readFile(attrFile, "utf-8")
       attributes = attributes.split(/\n/g)
 
       let [schemaName, schemaExt] = schemaFile.split(".")
-      let records = await fs.readFile(`${data}/${schemaName}.txt`, "utf-8")
+      let recordFile = path.join(data, `${schemaName}.txt`)
+
+      let records = await fs.readFile(recordFile, "utf-8")
       records = records.split(/\n/g)
 
       for (record of records) {
